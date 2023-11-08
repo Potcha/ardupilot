@@ -14,6 +14,7 @@ public:
     enum class Number : uint8_t {
         MANUAL       = 0,
         ACRO         = 1,
+        ZK5AD        = 2,
         STEERING     = 3,
         HOLD         = 4,
         LOITER       = 5,
@@ -60,32 +61,59 @@ public:
     //
 
     // return if in non-manual mode : Auto, Guided, RTL, SmartRTL
-    virtual bool is_autopilot_mode() const { return false; }
+    virtual bool is_autopilot_mode() const
+    {
+        return false;
+    }
 
     // return if external control is allowed in this mode (Guided or Guided-within-Auto)
-    virtual bool in_guided_mode() const { return false; }
+    virtual bool in_guided_mode() const
+    {
+        return false;
+    }
 
     // returns true if vehicle can be armed or disarmed from the transmitter in this mode
-    virtual bool allows_arming_from_transmitter() { return !is_autopilot_mode(); }
+    virtual bool allows_arming_from_transmitter()
+    {
+        return !is_autopilot_mode();
+    }
 
     // returns false if vehicle cannot be armed in this mode
-    virtual bool allows_arming() const { return true; }
+    virtual bool allows_arming() const
+    {
+        return true;
+    }
 
-    bool allows_stick_mixing() const { return is_autopilot_mode(); }
+    bool allows_stick_mixing() const
+    {
+        return is_autopilot_mode();
+    }
 
     //
     // attributes for mavlink system status reporting
     //
 
     // returns true if any RC input is used
-    virtual bool has_manual_input() const { return false; }
+    virtual bool has_manual_input() const
+    {
+        return false;
+    }
 
     // true if heading is controlled
-    virtual bool attitude_stabilized() const { return true; }
+    virtual bool attitude_stabilized() const
+    {
+        return true;
+    }
 
     // true if mode requires position and/or velocity estimate
-    virtual bool requires_position() const { return true; }
-    virtual bool requires_velocity() const { return true; }
+    virtual bool requires_position() const
+    {
+        return true;
+    }
+    virtual bool requires_velocity() const
+    {
+        return true;
+    }
 
     // return heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
     virtual float wp_bearing() const;
@@ -94,32 +122,47 @@ public:
     virtual float get_desired_lat_accel() const;
 
     // get speed error in m/s, not currently supported
-    float speed_error() const { return 0.0f; }
+    float speed_error() const
+    {
+        return 0.0f;
+    }
 
     //
     // navigation methods
     //
 
     // return distance (in meters) to destination
-    virtual float get_distance_to_destination() const { return 0.0f; }
+    virtual float get_distance_to_destination() const
+    {
+        return 0.0f;
+    }
 
     // return desired location (used in Guided, Auto, RTL, etc)
     // return true on success, false if there is no valid destination
-    virtual bool get_desired_location(Location& destination) const WARN_IF_UNUSED { return false; }
+    virtual bool get_desired_location(Location& destination) const WARN_IF_UNUSED
+    {
+        return false;
+    }
 
     // set desired location (used in Guided, Auto)
     // set next_destination (if known).  If not provided vehicle stops at destination
     virtual bool set_desired_location(const Location &destination, Location next_destination = Location()) WARN_IF_UNUSED;
 
     // true if vehicle has reached desired location. defaults to true because this is normally used by missions and we do not want the mission to become stuck
-    virtual bool reached_destination() const { return true; }
+    virtual bool reached_destination() const
+    {
+        return true;
+    }
 
     // get default speed for this mode (held in CRUISE_SPEED, WP_SPEED or RTL_SPEED)
     // rtl argument should be true if called from RTL or SmartRTL modes (handled here to avoid duplication)
     float get_speed_default(bool rtl = false) const;
 
     // set desired speed in m/s
-    virtual bool set_desired_speed(float speed) { return false; }
+    virtual bool set_desired_speed(float speed)
+    {
+        return false;
+    }
 
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
@@ -130,10 +173,16 @@ public:
 protected:
 
     // subclasses override this to perform checks before entering the mode
-    virtual bool _enter() { return true; }
+    virtual bool _enter()
+    {
+        return true;
+    }
 
     // subclasses override this to perform any required cleanup when exiting the mode
-    virtual void _exit() { return; }
+    virtual void _exit()
+    {
+        return;
+    }
 
     // decode pilot steering and throttle inputs and return in steer_out and throttle_out arguments
     // steering_out is in the range -4500 ~ +4500 with positive numbers meaning rotate clockwise
@@ -213,22 +262,69 @@ protected:
     float _desired_yaw_cd;      // desired yaw in centi-degrees.  used in Auto, Guided and Loiter
 };
 
+class ModeZK5AD : public Mode
+{
+
+public:
+
+    Number mode_number() const override
+    {
+        return Number::ZK5AD;
+    }
+    const char *name4() const override
+    {
+        return "ZK5AD";
+    }
+
+    // methods that affect movement of the vehicle in this mode
+    void update() override;
+
+private:
+
+    static constexpr int16_t CENTER_PWM = 1500;
+    AP_Relay *ap_relay = AP::relay();
+    int16_t _TRIM = 10;
+    
+
+    enum class RoverMovement {
+        MoveForward,
+        MoveBack,
+        TurnRight,
+        TurnLeft,
+        Stop
+    };
+
+    void setRoverMovement(RoverMovement);
+    
+};
 
 class ModeAcro : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::ACRO; }
-    const char *name4() const override { return "ACRO"; }
+    Number mode_number() const override
+    {
+        return Number::ACRO;
+    }
+    const char *name4() const override
+    {
+        return "ACRO";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes for mavlink system status reporting
-    bool has_manual_input() const override { return true; }
+    bool has_manual_input() const override
+    {
+        return true;
+    }
 
     // acro mode requires a velocity estimate for non skid-steer rovers
-    bool requires_position() const override { return false; }
+    bool requires_position() const override
+    {
+        return false;
+    }
     bool requires_velocity() const override;
 
     // sailboats in acro mode support user manually initiating tacking from transmitter
@@ -240,18 +336,30 @@ class ModeAuto : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::AUTO; }
-    const char *name4() const override { return "AUTO"; }
+    Number mode_number() const override
+    {
+        return Number::AUTO;
+    }
+    const char *name4() const override
+    {
+        return "AUTO";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
     void calc_throttle(float target_speed, bool avoidance_enabled) override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return if external control is allowed in this mode (Guided or Guided-within-Auto)
-    bool in_guided_mode() const override { return _submode == SubMode::Guided || _submode == SubMode::NavScriptTime; }
+    bool in_guided_mode() const override
+    {
+        return _submode == SubMode::Guided || _submode == SubMode::NavScriptTime;
+    }
 
     // return heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
     float wp_bearing() const override;
@@ -405,8 +513,14 @@ public:
     // Does not allow copies
     CLASS_NO_COPY(ModeCircle);
 
-    Number mode_number() const override { return Number::CIRCLE; }
-    const char *name4() const override { return "CIRC"; }
+    Number mode_number() const override
+    {
+        return Number::CIRCLE;
+    }
+    const char *name4() const override
+    {
+        return "CIRC";
+    }
 
     // initialise with specific center location, radius (in meters) and direction
     // replaces use of _enter when initialised from within Auto mode
@@ -415,26 +529,38 @@ public:
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return desired heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
     float wp_bearing() const override;
     float nav_bearing() const override;
-    float crosstrack_error() const override { return dist_to_edge_m; }
+    float crosstrack_error() const override
+    {
+        return dist_to_edge_m;
+    }
     float get_desired_lat_accel() const override;
 
     // set desired speed in m/s
     bool set_desired_speed(float speed_ms) override;
 
     // return distance (in meters) to destination
-    float get_distance_to_destination() const override { return _distance_to_destination; }
+    float get_distance_to_destination() const override
+    {
+        return _distance_to_destination;
+    }
 
     // get or set desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;
 
     // return total angle in radians that vehicle has circled
     // fabsf is used so that full rotations in either direction are counted
-    float get_angle_total_rad() const { return fabsf(angle_total_rad); }
+    float get_angle_total_rad() const
+    {
+        return fabsf(angle_total_rad);
+    }
 
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -492,17 +618,29 @@ public:
     friend class AP_ExternalControl_Rover;
 #endif
 
-    Number mode_number() const override { return Number::GUIDED; }
-    const char *name4() const override { return "GUID"; }
+    Number mode_number() const override
+    {
+        return Number::GUIDED;
+    }
+    const char *name4() const override
+    {
+        return "GUID";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return if external control is allowed in this mode (Guided or Guided-within-Auto)
-    bool in_guided_mode() const override { return true; }
+    bool in_guided_mode() const override
+    {
+        return true;
+    }
 
     // return heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
     float wp_bearing() const override;
@@ -596,43 +734,79 @@ class ModeHold : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::HOLD; }
-    const char *name4() const override { return "HOLD"; }
+    Number mode_number() const override
+    {
+        return Number::HOLD;
+    }
+    const char *name4() const override
+    {
+        return "HOLD";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes for mavlink system status reporting
-    bool attitude_stabilized() const override { return false; }
+    bool attitude_stabilized() const override
+    {
+        return false;
+    }
 
     // hold mode does not require position or velocity estimate
-    bool requires_position() const override { return false; }
-    bool requires_velocity() const override { return false; }
+    bool requires_position() const override
+    {
+        return false;
+    }
+    bool requires_velocity() const override
+    {
+        return false;
+    }
 };
 
 class ModeLoiter : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::LOITER; }
-    const char *name4() const override { return "LOIT"; }
+    Number mode_number() const override
+    {
+        return Number::LOITER;
+    }
+    const char *name4() const override
+    {
+        return "LOIT";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return desired heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
-    float wp_bearing() const override { return _desired_yaw_cd * 0.01f; }
-    float nav_bearing() const override { return _desired_yaw_cd * 0.01f; }
-    float crosstrack_error() const override { return 0.0f; }
+    float wp_bearing() const override
+    {
+        return _desired_yaw_cd * 0.01f;
+    }
+    float nav_bearing() const override
+    {
+        return _desired_yaw_cd * 0.01f;
+    }
+    float crosstrack_error() const override
+    {
+        return 0.0f;
+    }
 
     // return desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;
 
     // return distance (in meters) to destination
-    float get_distance_to_destination() const override { return _distance_to_destination; }
+    float get_distance_to_destination() const override
+    {
+        return _distance_to_destination;
+    }
 
 protected:
 
@@ -646,19 +820,37 @@ class ModeManual : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::MANUAL; }
-    const char *name4() const override { return "MANU"; }
+    Number mode_number() const override
+    {
+        return Number::MANUAL;
+    }
+    const char *name4() const override
+    {
+        return "MANU";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes for mavlink system status reporting
-    bool has_manual_input() const override { return true; }
-    bool attitude_stabilized() const override { return false; }
+    bool has_manual_input() const override
+    {
+        return true;
+    }
+    bool attitude_stabilized() const override
+    {
+        return false;
+    }
 
     // manual mode does not require position or velocity estimate
-    bool requires_position() const override { return false; }
-    bool requires_velocity() const override { return false; }
+    bool requires_position() const override
+    {
+        return false;
+    }
+    bool requires_velocity() const override
+    {
+        return false;
+    }
 
 protected:
 
@@ -670,23 +862,38 @@ class ModeRTL : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::RTL; }
-    const char *name4() const override { return "RTL"; }
+    Number mode_number() const override
+    {
+        return Number::RTL;
+    }
+    const char *name4() const override
+    {
+        return "RTL";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // do not allow arming from this mode
-    bool allows_arming() const override { return false; }
+    bool allows_arming() const override
+    {
+        return false;
+    }
 
     // return desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;
 
     // return distance (in meters) to destination
-    float get_distance_to_destination() const override { return _distance_to_destination; }
+    float get_distance_to_destination() const override
+    {
+        return _distance_to_destination;
+    }
     bool reached_destination() const override;
 
     // set desired speed in m/s
@@ -705,24 +912,42 @@ class ModeSmartRTL : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::SMART_RTL; }
-    const char *name4() const override { return "SRTL"; }
+    Number mode_number() const override
+    {
+        return Number::SMART_RTL;
+    }
+    const char *name4() const override
+    {
+        return "SRTL";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // do not allow arming from this mode
-    bool allows_arming() const override { return false; }
+    bool allows_arming() const override
+    {
+        return false;
+    }
 
     // return desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;
 
     // return distance (in meters) to destination
-    float get_distance_to_destination() const override { return _distance_to_destination; }
-    bool reached_destination() const override { return smart_rtl_state == SmartRTLState::StopAtHome; }
+    float get_distance_to_destination() const override
+    {
+        return _distance_to_destination;
+    }
+    bool reached_destination() const override
+    {
+        return smart_rtl_state == SmartRTLState::StopAtHome;
+    }
 
     // set desired speed in m/s
     bool set_desired_speed(float speed) override;
@@ -745,27 +970,45 @@ protected:
     bool _loitering;        // true if loitering at end of SRTL
 };
 
-   
+
 
 class ModeSteering : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::STEERING; }
-    const char *name4() const override { return "STER"; }
+    Number mode_number() const override
+    {
+        return Number::STEERING;
+    }
+    const char *name4() const override
+    {
+        return "STER";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes for mavlink system status reporting
-    bool has_manual_input() const override { return true; }
+    bool has_manual_input() const override
+    {
+        return true;
+    }
 
     // steering requires velocity but not position
-    bool requires_position() const override { return false; }
-    bool requires_velocity() const override { return true; }
+    bool requires_position() const override
+    {
+        return false;
+    }
+    bool requires_velocity() const override
+    {
+        return true;
+    }
 
     // return desired lateral acceleration
-    float get_desired_lat_accel() const override { return _desired_lat_accel; }
+    float get_desired_lat_accel() const override
+    {
+        return _desired_lat_accel;
+    }
 
 private:
 
@@ -776,20 +1019,38 @@ class ModeInitializing : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::INITIALISING; }
-    const char *name4() const override { return "INIT"; }
+    Number mode_number() const override
+    {
+        return Number::INITIALISING;
+    }
+    const char *name4() const override
+    {
+        return "INIT";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override { }
 
     // do not allow arming from this mode
-    bool allows_arming() const override { return false; }
+    bool allows_arming() const override
+    {
+        return false;
+    }
 
     // attributes for mavlink system status reporting
-    bool has_manual_input() const override { return true; }
-    bool attitude_stabilized() const override { return false; }
+    bool has_manual_input() const override
+    {
+        return true;
+    }
+    bool attitude_stabilized() const override
+    {
+        return false;
+    }
 protected:
-    bool _enter() override { return false; };
+    bool _enter() override
+    {
+        return false;
+    };
 };
 
 #if MODE_FOLLOW_ENABLED == ENABLED
@@ -797,22 +1058,40 @@ class ModeFollow : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::FOLLOW; }
-    const char *name4() const override { return "FOLL"; }
+    Number mode_number() const override
+    {
+        return Number::FOLLOW;
+    }
+    const char *name4() const override
+    {
+        return "FOLL";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
     // attributes of the mode
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return desired heading (in degrees) and cross track error (in meters) for reporting to ground station (NAV_CONTROLLER_OUTPUT message)
     float wp_bearing() const override;
-    float nav_bearing() const override { return wp_bearing(); }
-    float crosstrack_error() const override { return 0.0f; }
+    float nav_bearing() const override
+    {
+        return wp_bearing();
+    }
+    float crosstrack_error() const override
+    {
+        return 0.0f;
+    }
 
     // return desired location
-    bool get_desired_location(Location& destination) const override WARN_IF_UNUSED { return false; }
+    bool get_desired_location(Location& destination) const override WARN_IF_UNUSED
+    {
+        return false;
+    }
 
     // return distance (in meters) to destination
     float get_distance_to_destination() const override;
@@ -833,8 +1112,14 @@ class ModeSimple : public Mode
 {
 public:
 
-    Number mode_number() const override { return Number::SIMPLE; }
-    const char *name4() const override { return "SMPL"; }
+    Number mode_number() const override
+    {
+        return Number::SIMPLE;
+    }
+    const char *name4() const override
+    {
+        return "SMPL";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
@@ -863,16 +1148,28 @@ public:
     // Does not allow copies
     CLASS_NO_COPY(ModeDock);
 
-    Number mode_number() const override { return Number::DOCK; }
-    const char *name4() const override { return "DOCK"; }
+    Number mode_number() const override
+    {
+        return Number::DOCK;
+    }
+    const char *name4() const override
+    {
+        return "DOCK";
+    }
 
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
-    bool is_autopilot_mode() const override { return true; }
+    bool is_autopilot_mode() const override
+    {
+        return true;
+    }
 
     // return distance (in meters) to destination
-    float get_distance_to_destination() const override { return _distance_to_destination; }
+    float get_distance_to_destination() const override
+    {
+        return _distance_to_destination;
+    }
 
     static const struct AP_Param::GroupInfo var_info[];
 

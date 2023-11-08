@@ -107,6 +107,7 @@ public:
     // Aux Switch enumeration
     enum class AUX_FUNC {
         DO_NOTHING =           0, // aux switch disabled
+        ZK5AD =                1,
         FLIP =                 2, // flip
         SIMPLE_MODE =          3, // change to simple mode
         RTL =                  4, // change to RTL flight mode
